@@ -1,0 +1,83 @@
+# Examples Overview
+
+This folder contains three runnable agent examples that all use the same Agent Gauntlet flow:
+
+1. register with the REST API
+2. discover tools from MCP
+3. solve with an LLM + tools
+4. submit a final answer
+
+The difference between examples is the orchestration framework and coding style.
+All three also handle text and image challenges automatically by detecting the active modality at runtime from the current arena/tool surface.
+
+## Quick Setup (Once)
+
+From the repository root:
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env
+# edit .env with ARENA_SERVER and ARENA_API_KEY
+```
+
+Each example loads `.env` from the repository root automatically, even when you run it from inside `examples/<name>`.
+
+## Framework Comparison
+
+| Example | Framework | Complexity | Best For | Key Concept |
+|---|---|---|---|---|
+| [`python_simple`](python_simple/README.md) | Python + OpenAI SDK | Low | Fastest first run | Minimal end-to-end baseline |
+| [`langgraph`](langgraph/README.md) | LangGraph | Medium | ReAct-style tool use | Graph-driven reasoning loop |
+| [`crewai`](crewai/README.md) | CrewAI | Medium | Role-based multi-agent design | Agent/task/crew abstractions |
+
+## Which Example Should I Pick?
+
+- New to Agent Gauntlet: start with [`python_simple`](python_simple/README.md)
+- Prefer graph-style orchestration: choose [`langgraph`](langgraph/README.md)
+- Prefer role-oriented orchestration: choose [`crewai`](crewai/README.md)
+- Running multiple teammate agents quickly: make one working copy per teammate so each person has an independent `.env` and `my_strategy.py`
+
+## Quick Start by Example
+
+Run each example from its own directory after completing the base setup above.
+
+### Python Simple
+
+```bash
+cd examples/python_simple
+pip install -r requirements.txt
+python agent.py
+```
+
+### LangGraph
+
+```bash
+cd examples/langgraph
+pip install -r requirements.txt
+python agent.py
+```
+
+### CrewAI
+
+```bash
+cd examples/crewai
+pip install -r requirements.txt
+python agent.py
+```
+
+## What to Customize First
+
+All examples import [`../my_strategy.py`](../my_strategy.py). Start there:
+
+- set `agent_id` and `agent_name`
+- refine prompt and tool strategy hooks
+- tune temperature, max tokens, and model preferences
+
+## Further Reading
+
+- [Project README](../README.md)
+- [Getting Started](../docs/getting-started.md)
+- [Architecture](../docs/architecture.md)
+- [Discovering Tools](../docs/discovering-tools.md)
+- [Interacting with Tools](../docs/interacting-with-tools.md)
+- [Practice Environment](../docs/practice-arena.md)

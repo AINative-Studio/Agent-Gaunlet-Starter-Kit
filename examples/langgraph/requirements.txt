@@ -1,0 +1,4 @@
+mcp
+langgraph
+langchain-openai
+langchain-mcp-adapters

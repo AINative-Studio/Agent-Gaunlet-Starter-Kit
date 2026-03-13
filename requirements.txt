@@ -1,0 +1,9 @@
+mcp
+python-dotenv
+
+# Optional - uncomment for your framework:
+# openai
+# langgraph
+# langchain-openai
+# langchain-mcp-adapters
+# google-adk
