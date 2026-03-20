@@ -1,0 +1,9 @@
+node_modules/
+dist/
+reports/
+.gauntlet/
+.DS_Store
+.env.local
+.env
+local.env
+.mcp.json

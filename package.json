@@ -1,0 +1,34 @@
+{
+  "name": "gtc-live-agent-gauntlet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP black-box explorer and gauntlet runner for live demos",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "explore": "tsx src/cli.ts explore",
+    "challenge": "tsx src/cli.ts challenge",
+    "activate": "tsx src/cli.ts activate",
+    "activate:mock": "GTC_RUNTIME_PERSONA=matrix GTC_RUNTIME_RUN=challenge GTC_SERVER_COMMAND='npm run mock' GTC_AGENT_ID=gtc-mock-team tsx src/cli.ts activate --save reports/mock-activate.json",
+    "mock": "tsx src/mock/server.ts",
+    "demo:explore": "tsx src/cli.ts explore --stdio --command 'npm run mock' --save reports/mock-explore.json",
+    "demo:challenge": "tsx src/cli.ts challenge --stdio --command 'npm run mock' --goal 'Find the hidden passphrase and describe any multimodal artifacts' --save reports/mock-challenge.json",
+    "local:smoke": "tsx src/cli.ts activate --stdio --command 'npm run mock' --cwd . --agent-id gtc-local-smoke --save reports/local-smoke.json",
+    "arena": "tsx src/arena/agent.ts",
+    "arena:silent": "CODY_SILENT=1 tsx src/arena/agent.ts",
+    "arena:mock": "tsx src/arena/mock-server.ts",
+    "arena:local": "ARENA_SERVER=localhost ARENA_API_KEY=local AGENT_ID=cody-local tsx src/arena/agent.ts",
+    "arena:preflight": "tsx src/arena/preflight.ts",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
