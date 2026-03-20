@@ -1,294 +1,273 @@
-# Agent Gauntlet Starter Kit
+# AINative Arena Agent
 
-<img src="./assets/banner.png" alt="Live Agent Gauntlet" width="240" />
+A pluggable, competition-ready autonomous agent framework for MCP-based arena challenges. Built by [AINative Studio](https://github.com/AINative-Studio).
 
-Build and run a competitor agent for Agent Gauntlet.
+Originally developed for and battle-tested at the GTC 2026 Live Agent Gauntlet (forked from [jayrodge/Agent-Gaunlet-Starter-Kit](https://github.com/jayrodge/Agent-Gaunlet-Starter-Kit)). Now being expanded into a reusable platform for internal agent battles, hack events, and the AINative AgentSwarm product.
 
-This repository gives you:
+## What it does
 
-- reusable REST and MCP clients
-- a programmable strategy framework (`BaseStrategy` + `MyStrategy`)
-- ready-to-run example agents across three frameworks
-- docs for tool discovery, tool usage, and architecture
+- **Arena Agent** — registers with an arena server, discovers MCP tools at runtime, solves text and image challenges autonomously, submits answers, and tracks scores on a live leaderboard
+- **MCP Explorer** — connects to any unknown MCP server, enumerates tools/prompts/resources, builds a capability map, and detects multimodal artifacts
+- **Pluggable Strategies** — swap solving approaches without touching the agent core (majority vote, image edit, or write your own)
+- **Voice Persona** — Cody narrates key events via TTS with a custom voice sample
+- **Local Mock Arena** — full arena server simulation with 7 challenge types for offline development
 
-## What You Need From the Organizer
-
-Before you can compete, the organizer must give you:
-
-- the Agent Gauntlet server IP or hostname
-- your Agent Gauntlet battle key (`ARENA_API_KEY`)
-
-Configure those in `.env`:
+## Quick start
 
 ```bash
-cp .env.example .env
-```
-
-| Variable | Required | Example |
-|---|---|---|
-| `ARENA_SERVER` | Yes | `<organizer-provided-host>` |
-| `ARENA_API_KEY` | Yes | `<battle-key>` |
-
-The starter kit derives the REST API, MCP, and proxy URLs automatically from `ARENA_SERVER`.
-`ARENA_API_KEY` is used for REST and MCP access, and as the default for proxy access.
-That is the full required config for competitors. The arena hosts the model roster on the
-server-side proxy, so you do not need a separate NVIDIA, OpenAI, OpenRouter, or other external
-model-provider API key.
-
-## Event Notes
-
-- Build your agent before arriving. There is no coding time on stage, only execution.
-- Competition page: [Live Agent Gauntlet](https://luma.com/gtc-live-agent-gauntlet)
-- Treat the MCP server like a black box. Your agent must discover tools at runtime and adapt.
-- This release is focused on the active text and image paths in the current Gauntlet repos.
-- See [Competition Rules](docs/competition-rules.md) for tournament format, judging, and event expectations.
-
-## Event Guidelines
-
-- **Model fallback**: Your agent should be able to swap models if one is not working—for example, when an API endpoint is unavailable or failing. Use `rank_models()`, `pick_model()`, or `select_model()` to define fallbacks.
-- **Originality**: Your submission must not be an exact replica of the starter kit; otherwise it may be disqualified. Customize prompts, strategy, and logic.
-
-## How a Round Works
-
-1. Your agent registers with the Gauntlet API
-2. It waits until organizer countdown reaches GO
-3. It discovers tools from the MCP server at runtime
-4. It retrieves the challenge and solves using tools + LLM proxy
-5. It submits a final answer to the API
-6. Score is computed and shown on the live leaderboard
-
-## Judging Criteria (High Level)
-
-Your agent is evaluated across multiple dimensions, including:
-
-- answer quality
-- speed
-- effective tool usage
-- model usage strategy
-- token efficiency
-
-Answer quality matters most, but speed, tool usage, model usage, and token efficiency all contribute.
-There is also a quality floor before efficiency bonuses meaningfully help, so optimize for balanced
-performance rather than chasing one metric. Token usage is tracked server-side rather than trusted
-from self-reported values. See [Competition Rules](docs/competition-rules.md) for the event-level
-guidance shared with competitors.
-
-## Challenge Types You Should Expect
-
-- **Text challenges**: logic, reasoning, retrieval, and structured output tasks
-- **Image challenges**: image understanding/editing workflows
-
-In the Practice Arena, the server decides which modality you receive for a given run. You still start the agent with the same command, and the examples detect the active modality automatically at runtime. See [Practice Environment](docs/practice-arena.md#how-challenge-modality-works) for details.
-
-Challenges are time-boxed, so robust time management matters.
-
-## Quick Start (5 Minutes)
-
-```bash
-git clone https://github.com/jayrodge/Agent-Gaunlet-Starter-Kit.git
+git clone https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit.git
 cd Agent-Gaunlet-Starter-Kit
-pip install -r requirements.txt
-cp .env.example .env
-# edit .env with organizer-provided server IP and battle key
-
-# run the minimal example
-cd examples/python_simple
-pip install -r requirements.txt
-python agent.py
+git checkout cody-arena-agent
+npm install
 ```
 
-Example agents load `.env` from the repository root automatically, so the same config works whether you launch from the repo root or from inside an example directory.
-
-## Choose Your Starting Point
-
-| Example | Framework | Best For | Command |
-|---|---|---|---|
-| `python_simple` | Python + OpenAI SDK | Fastest way to understand end-to-end flow | `cd examples/python_simple && pip install -r requirements.txt && python agent.py` |
-| `langgraph` | LangGraph | ReAct-style orchestration | `cd examples/langgraph && pip install -r requirements.txt && python agent.py` |
-| `crewai` | CrewAI | Multi-agent crew abstractions | `cd examples/crewai && pip install -r requirements.txt && python agent.py` |
-
-Commands assume you already completed the base setup above from the repository root.
-
-## Strategy System (What to Edit First)
-
-Your primary customization point is [`my_strategy.py`](my_strategy.py), which subclasses [`base_strategy.py`](base_strategy.py).
-
-Start by setting:
-
-- `agent_id`
-- `agent_name`
-- `text_system_prompt`
-- `text_strategy_notes`
-- `text_temperature`
-- `text_max_tokens`
-- `preferred_model`
-
-Then override hooks as needed:
-
-| Hook | Why override it |
-|---|---|
-| `rank_models()` | Prioritize models for your challenge style |
-| `pick_model()` | Choose different models for solve vs verify stages |
-| `build_system_prompt()` | Define stable behavior/persona |
-| `build_solver_prompt()` | Control task framing and output formatting |
-| `get_llm_params()` | Tune temperature/max tokens per scenario |
-| `plan_tools()` | Set preferred tool order |
-| `on_tool_result()` | Add post-tool adaptation logic |
-| `should_submit_early()` | Submit immediately when confidence is high |
-| `on_time_warning()` | Force safe fallback answer near timeout |
-| `plan_image_tool()` | Pick image edit vs generate vs analyze flow |
-| `build_image_prompt()` | Control image prompt quality/constraints |
-
-## Core Client APIs
-
-Use [`arena_clients/`](arena_clients/) if you are building your own agent from scratch.
-
-```python
-from arena_clients import HttpArenaClient, McpArenaClient
-
-http = HttpArenaClient()
-http.register("my-agent", "My Team")
-
-async with McpArenaClient() as mcp:
-    tools = await mcp.list_tools()
-    challenge = await mcp.get_challenge("my-agent")
-```
-
-- `HttpArenaClient` handles registration, status, thoughts, draft save, and submit
-- `McpArenaClient` handles tool discovery and tool calls over SSE
-
-## Model Selection and Proxy Usage
-
-Use [`model_selector.py`](model_selector.py) to fetch available models and pick a model dynamically based on challenge context:
-
-```python
-from model_selector import fetch_available_models, select_model
-```
-
-The proxy is OpenAI-compatible (`/chat/completions`), so standard SDK clients work.
-All practice and event-day models are hosted behind the arena proxy, so your organizer-provided
-`ARENA_API_KEY` is the only key you need for model access.
-
-## Trade-Offs: Quality vs Speed vs Tokens
-
-Agent Gauntlet rewards balanced agents, not just the most verbose ones.
-
-- Bigger models can improve answer quality, but they are often slower and use more tokens.
-- Lower `text_max_tokens` can reduce latency, but it also shortens the model's reasoning budget.
-- Calling many tools or many models can help in the right challenge, but unnecessary orchestration adds overhead.
-- The best event-day strategy is usually a reliable answer quickly, not a perfect answer too late.
-
-## How to Test If Your Agent Is Working
-
-Use this checklist before event day.
-
-### 1) Connectivity preflight
+### Run against the local mock arena
 
 ```bash
-# API health
-curl -s "http://$ARENA_SERVER:8000/api/health"
+# Terminal 1: start the mock server
+npm run arena:mock
 
-# Proxy model roster (auth required)
-curl -s "http://$ARENA_SERVER:4001/models" \
-  -H "Authorization: Bearer $ARENA_API_KEY"
+# Terminal 2: run the agent
+npm run arena:local
 ```
 
-Both commands should return valid JSON.
-
-### 2) Functional smoke test (single run)
-
-Run a baseline agent first:
+### Run against a live arena server
 
 ```bash
-cd examples/python_simple
-python agent.py
+cp team.env.example .env.local
+# Edit .env.local with your ARENA_SERVER, ARENA_API_KEY, and AGENT_ID
+npm run arena
 ```
 
-A healthy run should:
-
-- register successfully
-- wait for organizer GO without crashing
-- fetch challenge/tools from MCP
-- submit an answer before timeout
-
-### 3) Verify server-side state
-
-After submission, validate your session and leaderboard entry:
-Set `AGENT_ID` to your runtime agent ID (the value from `my_strategy.py` or your `AGENT_ID` env override) before running the first curl.
+### Run the MCP explorer against any server
 
 ```bash
-curl -s "http://$ARENA_SERVER:8000/api/session/$AGENT_ID" \
-  -H "X-Arena-API-Key: $ARENA_API_KEY"
-
-curl -s "http://$ARENA_SERVER:8000/api/leaderboard" \
-  -H "X-Arena-API-Key: $ARENA_API_KEY"
+npm run explore -- --stdio --command "python3 your-server.py"
+npm run explore -- --url http://localhost:3000/mcp
 ```
 
-Check that your agent appears and has a submission/score payload.
+## Arena agent architecture
 
-### 4) Repeatability test
+The `ArenaAgent` class manages the full competition lifecycle:
 
-Run the same challenge multiple times and compare:
-
-- accepted vs rejected submissions
-- output format consistency
-- elapsed time stability
-- token usage trends
-
-If behavior is unstable across runs, simplify prompts/tool flow before competition day.
-
-## Competition Tips
-
-- Discover tools at runtime (`list_tools`) instead of hardcoding
-- Keep prompts concise and submission format strict
-- Track remaining time and submit a safe answer before timeout
-- Record useful client metrics (`model_name`, token usage, latency)
-- Prefer deterministic behavior over flashy behavior under time pressure
-
-## Multiple Teammates
-
-For team events, give each teammate their own working copy of the starter kit so everyone can keep separate `.env` values, `agent_id`s, and `my_strategy.py` changes.
-
-A simple workflow is:
-
-- duplicate the repo into one folder per teammate, or use separate worktrees/branches
-- copy `.env.example` to `.env` in each working copy
-- update `my_strategy.py` with a stable `agent_id` and `agent_name` for that teammate
-
-## Repository Structure
-
-```text
-arena_clients/                REST + MCP adapters
-base_strategy.py              Strategy hook interface and defaults
-my_strategy.py                Your team customization file
-model_selector.py             Dynamic model selection helper
-examples/                     Ready-to-run framework examples
-docs/                         Competitor documentation
+```
+Register → Wait for battle → Connect MCP → Discover tools → Detect modality
+  → Fetch challenge → Solve (via pluggable strategy) → Submit answer
 ```
 
-## FAQ
+### Pluggable strategies
 
-**Do I need to hardcode tool names?**  
-No. Always discover tool availability at runtime.
+```typescript
+import { ArenaAgent } from './arena/agent.js';
+import { MajorityVoteStrategy } from './arena/strategies/majority-vote.js';
+import { ImageEditStrategy } from './arena/strategies/image-edit.js';
 
-**Can I use any model I want?**  
-Use models exposed by the Gauntlet proxy for the event. Those models are hosted server-side, so
-you do not need your own NVIDIA or other provider API key.
+const agent = new ArenaAgent({
+  config: { agentId: 'my-team', agentName: 'My Agent' },
+  textStrategy: new MajorityVoteStrategy({ maxVerifyModels: 8 }),
+  imageStrategy: new ImageEditStrategy({ maxModels: 12 }),
+  hooks: {
+    onScore: (s) => console.log(`Score: ${s.final_score}`),
+    onError: (e) => console.error(`Error: ${e.message}`),
+  }
+});
 
-**What happens when the round ends?**  
-The organizer controls when the round opens and starts. Keep your configured key ready before launch.
+await agent.run();
+```
 
-**Should my agent broadcast thoughts?**  
-Optional, but useful for visibility and debugging during live runs.
+### Built-in strategies
 
-**Can I submit partial work?**  
-Use draft save APIs during solving, then submit your best final answer before timeout.
+| Strategy | Type | What it does |
+|----------|------|-------------|
+| `MajorityVoteStrategy` | Text | Solves with a primary model, verifies with N models in parallel, uses majority vote to pick the best answer |
+| `ImageEditStrategy` | Image | Calls `image_edit` or `image_generate` tool, submits via MCP, runs model + tool calls in parallel for speed |
 
-## Documentation
+### Lifecycle hooks
 
-- [Competition Rules](docs/competition-rules.md) -- tournament format, judging, and event expectations
-- [Practice Environment](docs/practice-arena.md) -- test your agent before competition day
-- [Getting Started](docs/getting-started.md)
-- [Discovering Tools](docs/discovering-tools.md)
-- [Interacting with Tools](docs/interacting-with-tools.md)
-- [Architecture](docs/architecture.md)
+```typescript
+interface AgentLifecycleHooks {
+  onOnline?: () => void;
+  onRegistered?: (agentId: string) => void;
+  onToolsDiscovered?: (tools: ToolDef[]) => void;
+  onChallengeReceived?: (modality: string, description: string) => void;
+  onSolving?: (modality: string) => void;
+  onSubmitting?: (answer: string) => void;
+  onScore?: (score: Record<string, number>) => void;
+  onDone?: () => void;
+  onError?: (error: Error) => void;
+}
+```
+
+## Arena protocol
+
+The agent communicates with three server components:
+
+| Component | Port | Protocol | Purpose |
+|-----------|------|----------|---------|
+| REST API | 8000 | HTTP | Registration, status, thoughts, submission, leaderboard |
+| MCP Server | 5001 | SSE | Tool discovery, challenge retrieval, clue gathering |
+| LLM Proxy | 4001 | HTTP (OpenAI-compatible) | Model inference via `/chat/completions` |
+
+### How a round works
+
+1. Agent registers with the arena API
+2. Agent waits for the organizer to start the battle
+3. Agent discovers tools from the MCP server
+4. Agent retrieves the challenge and gathers clues
+5. Agent calls the LLM proxy to reason and solve
+6. Agent submits a final answer
+7. Server returns a score breakdown
+
+### Scoring dimensions
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Quality | ~50% | Answer correctness (LLM-judged or exact match) |
+| Speed | ~20% | Time from registration to submission |
+| Tools | ~10% | How many available tools were used effectively |
+| Models | ~10% | How many available models were leveraged |
+| Tokens | ~10% | Token efficiency (lower usage scores higher) |
+
+## NPM scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run arena` | Run agent against configured arena server (with voice) |
+| `npm run arena:silent` | Run agent without voice narration |
+| `npm run arena:local` | Run agent against local mock server |
+| `npm run arena:mock` | Start the local mock arena server |
+| `npm run arena:preflight` | Verify arena server connectivity |
+| `npm run explore` | MCP explorer mode (recon a server) |
+| `npm run challenge` | MCP challenge mode (recon + solve) |
+| `npm run activate` | Operator activation mode (env-driven) |
+| `npm run activate:mock` | Quick rehearsal against mock MCP server |
+| `npm test` | Run the full test suite (14 tests) |
+
+## Project layout
+
+```
+src/arena/                      Arena agent framework
+  agent.ts                      ArenaAgent class + CLI entrypoint
+  strategy.ts                   TextStrategy / ImageStrategy interfaces
+  strategies/
+    majority-vote.ts            Default text solver (model fallback + majority vote)
+    image-edit.ts               Default image solver (parallel tools + models)
+  client.ts                     REST API client
+  mcp.ts                        MCP SSE client
+  proxy.ts                      LLM proxy client (OpenAI-compatible)
+  types.ts                      Shared interfaces (ArenaConfig, SolveResult, hooks)
+  retry.ts                      withRetry, pollUntil, sleep utilities
+  env.ts                        Environment file loader
+  voice.ts                      Cody voice narration (macOS TTS + intro clip)
+  preflight.ts                  Arena connectivity checker
+  mock-server.ts                Local mock arena (REST + MCP + proxy, 7 challenges)
+
+src/core/                       MCP explorer framework
+  connect.ts                    MCP client connection layer (stdio + HTTP)
+  explorer.ts                   Safe tool/prompt/resource enumeration
+  runner.ts                     Challenge pass with attempt tracking
+  memory.ts                     ZeroDB + local fallback memory
+  persona.ts                    Cody // Matrix Mode persona
+  artifacts.ts                  Multimodal artifact detection
+  types.ts                      Explorer type definitions
+  utils.ts                      Shared utilities
+
+src/cli.ts                      Explorer CLI entrypoint
+src/mock/server.ts              Rehearsal MCP server (stdio)
+test/                           Test suite (14 tests)
+```
+
+## Configuration
+
+### Environment variables
+
+```bash
+# Arena connection (required for competition)
+ARENA_SERVER="your-arena-host"
+ARENA_API_KEY="your-battle-key"
+AGENT_ID="your-unique-agent-id"
+AGENT_NAME="Your Agent Name"
+
+# Optional: preferred primary model
+PREFERRED_MODEL="claude-opus"
+
+# Optional: voice control
+CODY_SILENT=1                    # disable voice
+CODY_VOICE="Samantha"            # macOS TTS voice
+CODY_RATE=185                    # words per minute
+
+# Optional: ZeroDB memory backend
+ZERODB_BASE_URL="https://your-zerodb-host"
+ZERODB_PROJECT_ID="your-project-id"
+ZERODB_API_KEY="your-api-key"
+
+# Explorer mode
+GTC_RUNTIME_PERSONA="matrix"
+GTC_RUNTIME_RUN="challenge"
+GTC_AGENT_ID="your-team-id"
+GTC_SERVER_COMMAND="python3 server.py"
+GTC_GOAL="Find the hidden answer safely"
+```
+
+## Local mock arena
+
+The mock server simulates the full arena protocol locally with 7 challenge types:
+
+| # | Type | Difficulty | Description |
+|---|------|-----------|-------------|
+| 1 | logic-puzzle | easy | 3-entity ordering |
+| 2 | logic-puzzle | medium | 4-entity ordering with constraints |
+| 3 | logic-puzzle | hard | 6-entity chronological ordering |
+| 4 | reasoning | hard | 5-entity multi-attribute assignment |
+| 5 | logic-puzzle | hard | 7-entity scheduling |
+| 6 | logic-puzzle | very-hard | 8-entity marathon finishing order |
+| 7 | text-analysis | medium | Letter-by-letter word decoding |
+
+The mock LLM returns wrong answers 30% of the time to test the majority vote recovery system.
+
+## Tests
+
+```bash
+npm test
+```
+
+14 tests covering:
+- TypeScript build
+- CLI help and failure paths
+- Mock server explore, challenge, and activate flows
+- Stable `agent_id` reuse and rotation
+- Local memory persistence and malformed-log tolerance
+- ZeroDB success path with mocked endpoints
+- ZeroDB search failure fallback to local memory
+
+## Cody // Matrix Mode
+
+The agent persona is Cody — a calm, technical, stage-ready operator voice.
+
+> Sharp, calm, technical, and stage-ready. Map the system fast, narrate only what matters, and stay allergic to reckless probes. Treat clues like signal, not decoration. Sound confident and precise. Never ham it up. No cringe. No cosplay. Just clean operator energy.
+
+Voice narration plays at key lifecycle events: online, registered, tools discovered, solving, submitting, score, done. Disable with `CODY_SILENT=1` or `--silent`.
+
+## Best competition scores (practice arena)
+
+| Challenge Type | Quality | Speed | Final Score |
+|---------------|---------|-------|-------------|
+| Text logic | 100 | 58 | **91.15** |
+| Image edit | 100 | 85 | **87.75** |
+| Image generate | 100 | 75 | **86.25** |
+
+## Roadmap
+
+See [GitHub Issues](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues) for the full roadmap. Key next steps:
+
+- **Production Arena Server** — self-hosted event server with configurable challenges ([#1](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/1))
+- **Challenge Authoring** — JSON schema + CLI for creating puzzles ([#2](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/2))
+- **Operator Dashboard** — real-time web UI for running events ([#3](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/3))
+- **Audio & Video Challenges** — expand modalities ([#4](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/4))
+- **Tournament Brackets** — head-to-head elimination ([#5](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/5))
+- **Multi-agent Swarm** — cooperative specialist agents ([#6](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/6))
+- **npm Package** — `@ainative/arena-agent` ([#8](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/8))
+
+## License
+
+MIT
