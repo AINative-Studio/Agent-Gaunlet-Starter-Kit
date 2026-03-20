@@ -1,457 +1,273 @@
-# GTC Live Agent Gauntlet
+# AINative Arena Agent
 
-Fast, reliable black-box MCP explorer for live competition runs.
+A pluggable, competition-ready autonomous agent framework for MCP-based arena challenges. Built by [AINative Studio](https://github.com/AINative-Studio).
 
-This build is hardened for stage use with four upgrades:
-
-- **Persistent memory** with **ZeroDB first** and **local-file fallback**
-- **Stable team `agent_id`** reuse across rounds by default
-- **Cody // Matrix Mode** persona for operator-facing output and summaries
-- **Runtime activation flow** so the team can light it up and run immediately
-
-## Fastest start
-
-If you want the shortest path from zero to test run:
-
-```bash
-cd /Users/tobymorning/Desktop/gtc-live-agent-gauntlet
-npm install
-npm run activate
-```
-
-The CLI now auto-loads the first local env file it finds in the project root:
-- `.env.local`
-- `local.env`
-- `.env`
-
-So local-machine runs no longer require a manual `source .env.local` step.
-
-For an instant local rehearsal without editing anything:
-
-```bash
-npm run activate:mock
-```
-
-That activates the runtime persona, reuses a stable team identity, loads memory, and runs a challenge pass immediately.
+Originally developed for and battle-tested at the GTC 2026 Live Agent Gauntlet (forked from [jayrodge/Agent-Gaunlet-Starter-Kit](https://github.com/jayrodge/Agent-Gaunlet-Starter-Kit)). Now being expanded into a reusable platform for internal agent battles, hack events, and the AINative AgentSwarm product.
 
 ## What it does
 
-- Connects to an unknown MCP server over stdio or Streamable HTTP
-- Enumerates tools, prompts, resources, and resource templates
-- Builds a capability map with safe probe arguments where possible
-- Reads low-risk resources and prompts automatically
-- Detects likely text / image / audio / video / JSON artifacts
-- Runs a lightweight challenge pass that looks for flags, passphrases, hints, and multimodal clues
-- Persists discoveries, clues, tool maps, artifact metadata, attempts, and solved-state across runs
-- Includes a local mock MCP server for rehearsal
+- **Arena Agent** — registers with an arena server, discovers MCP tools at runtime, solves text and image challenges autonomously, submits answers, and tracks scores on a live leaderboard
+- **MCP Explorer** — connects to any unknown MCP server, enumerates tools/prompts/resources, builds a capability map, and detects multimodal artifacts
+- **Pluggable Strategies** — swap solving approaches without touching the agent core (majority vote, image edit, or write your own)
+- **Voice Persona** — Cody narrates key events via TTS with a custom voice sample
+- **Local Mock Arena** — full arena server simulation with 7 challenge types for offline development
 
-## Demo-first operating model
-
-This is tuned for **demo reliability over polish**:
-
-- Prefer read/list/search/get-style calls first
-- Infer minimal safe arguments from JSON schema
-- Skip tools that appear to require secrets or dangerous identifiers
-- Save every run as JSON so you can narrate from evidence instead of memory
-- Write everything important to memory so the next round starts hotter than the last one
-
-## Setup
+## Quick start
 
 ```bash
-cd /Users/tobymorning/Desktop/gtc-live-agent-gauntlet
+git clone https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit.git
+cd Agent-Gaunlet-Starter-Kit
+git checkout cody-arena-agent
 npm install
 ```
 
-## Runtime activation
-
-There is now an explicit operator entrypoint for stage use:
+### Run against the local mock arena
 
 ```bash
-npm run activate
+# Terminal 1: start the mock server
+npm run arena:mock
+
+# Terminal 2: run the agent
+npm run arena:local
 ```
 
-`activate` does three things:
-
-1. turns on the runtime persona wiring
-2. pulls connection/runtime defaults from team env config
-3. runs `explore` or `challenge` immediately
-
-### Activate mode defaults
-
-`activate` reads these environment variables:
-
-- `GTC_RUNTIME_PERSONA` — currently `matrix`
-- `GTC_RUNTIME_RUN` — `explore` or `challenge`
-- `GTC_AGENT_ID` — shared team identity
-- `GTC_SERVER_COMMAND` — stdio launch command
-- `GTC_SERVER_CWD` — stdio working directory
-- `GTC_SERVER_URL` — HTTP MCP endpoint
-- `GTC_GOAL` — default challenge goal
-
-### Activate mode examples
-
-Run challenge mode from env config:
-
-```bash
-npm run activate
-```
-
-Force explore mode just for this run:
-
-```bash
-npm run activate -- --run explore
-```
-
-Override the goal live:
-
-```bash
-npm run activate -- --goal "Find the hidden answer safely"
-```
-
-Bypass env connection settings and pass them directly:
-
-```bash
-npm run activate -- --run challenge --stdio --command "python3 server.py"
-```
-
-## Team config file
-
-A sample team config is included at:
-
-- `team.env.example`
-
-Recommended workflow:
+### Run against a live arena server
 
 ```bash
 cp team.env.example .env.local
-# edit values for your team/server if needed
-npm run activate
+# Edit .env.local with your ARENA_SERVER, ARENA_API_KEY, and AGENT_ID
+npm run arena
 ```
 
-For this local-machine build, `.env.local` is already supported automatically at runtime.
-
-Example `.env.local` shape:
+### Run the MCP explorer against any server
 
 ```bash
-export GTC_RUNTIME_PERSONA="matrix"
-export GTC_RUNTIME_RUN="challenge"
-export GTC_AGENT_ID="gtc-stage-team"
-export GTC_SERVER_COMMAND="python3 server.py"
-export GTC_SERVER_CWD="/absolute/path/to/server"
-export GTC_GOAL="Find the hidden answer safely and call out multimodal artifacts"
+npm run explore -- --stdio --command "python3 your-server.py"
+npm run explore -- --url http://localhost:3000/mcp
 ```
 
-## Memory setup
+## Arena agent architecture
 
-### ZeroDB-backed memory
+The `ArenaAgent` class manages the full competition lifecycle:
 
-If ZeroDB is configured, the agent will recall and store semantic memory there.
+```
+Register → Wait for battle → Connect MCP → Discover tools → Detect modality
+  → Fetch challenge → Solve (via pluggable strategy) → Submit answer
+```
 
-Required env vars:
+### Pluggable strategies
+
+```typescript
+import { ArenaAgent } from './arena/agent.js';
+import { MajorityVoteStrategy } from './arena/strategies/majority-vote.js';
+import { ImageEditStrategy } from './arena/strategies/image-edit.js';
+
+const agent = new ArenaAgent({
+  config: { agentId: 'my-team', agentName: 'My Agent' },
+  textStrategy: new MajorityVoteStrategy({ maxVerifyModels: 8 }),
+  imageStrategy: new ImageEditStrategy({ maxModels: 12 }),
+  hooks: {
+    onScore: (s) => console.log(`Score: ${s.final_score}`),
+    onError: (e) => console.error(`Error: ${e.message}`),
+  }
+});
+
+await agent.run();
+```
+
+### Built-in strategies
+
+| Strategy | Type | What it does |
+|----------|------|-------------|
+| `MajorityVoteStrategy` | Text | Solves with a primary model, verifies with N models in parallel, uses majority vote to pick the best answer |
+| `ImageEditStrategy` | Image | Calls `image_edit` or `image_generate` tool, submits via MCP, runs model + tool calls in parallel for speed |
+
+### Lifecycle hooks
+
+```typescript
+interface AgentLifecycleHooks {
+  onOnline?: () => void;
+  onRegistered?: (agentId: string) => void;
+  onToolsDiscovered?: (tools: ToolDef[]) => void;
+  onChallengeReceived?: (modality: string, description: string) => void;
+  onSolving?: (modality: string) => void;
+  onSubmitting?: (answer: string) => void;
+  onScore?: (score: Record<string, number>) => void;
+  onDone?: () => void;
+  onError?: (error: Error) => void;
+}
+```
+
+## Arena protocol
+
+The agent communicates with three server components:
+
+| Component | Port | Protocol | Purpose |
+|-----------|------|----------|---------|
+| REST API | 8000 | HTTP | Registration, status, thoughts, submission, leaderboard |
+| MCP Server | 5001 | SSE | Tool discovery, challenge retrieval, clue gathering |
+| LLM Proxy | 4001 | HTTP (OpenAI-compatible) | Model inference via `/chat/completions` |
+
+### How a round works
+
+1. Agent registers with the arena API
+2. Agent waits for the organizer to start the battle
+3. Agent discovers tools from the MCP server
+4. Agent retrieves the challenge and gathers clues
+5. Agent calls the LLM proxy to reason and solve
+6. Agent submits a final answer
+7. Server returns a score breakdown
+
+### Scoring dimensions
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Quality | ~50% | Answer correctness (LLM-judged or exact match) |
+| Speed | ~20% | Time from registration to submission |
+| Tools | ~10% | How many available tools were used effectively |
+| Models | ~10% | How many available models were leveraged |
+| Tokens | ~10% | Token efficiency (lower usage scores higher) |
+
+## NPM scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run arena` | Run agent against configured arena server (with voice) |
+| `npm run arena:silent` | Run agent without voice narration |
+| `npm run arena:local` | Run agent against local mock server |
+| `npm run arena:mock` | Start the local mock arena server |
+| `npm run arena:preflight` | Verify arena server connectivity |
+| `npm run explore` | MCP explorer mode (recon a server) |
+| `npm run challenge` | MCP challenge mode (recon + solve) |
+| `npm run activate` | Operator activation mode (env-driven) |
+| `npm run activate:mock` | Quick rehearsal against mock MCP server |
+| `npm test` | Run the full test suite (14 tests) |
+
+## Project layout
+
+```
+src/arena/                      Arena agent framework
+  agent.ts                      ArenaAgent class + CLI entrypoint
+  strategy.ts                   TextStrategy / ImageStrategy interfaces
+  strategies/
+    majority-vote.ts            Default text solver (model fallback + majority vote)
+    image-edit.ts               Default image solver (parallel tools + models)
+  client.ts                     REST API client
+  mcp.ts                        MCP SSE client
+  proxy.ts                      LLM proxy client (OpenAI-compatible)
+  types.ts                      Shared interfaces (ArenaConfig, SolveResult, hooks)
+  retry.ts                      withRetry, pollUntil, sleep utilities
+  env.ts                        Environment file loader
+  voice.ts                      Cody voice narration (macOS TTS + intro clip)
+  preflight.ts                  Arena connectivity checker
+  mock-server.ts                Local mock arena (REST + MCP + proxy, 7 challenges)
+
+src/core/                       MCP explorer framework
+  connect.ts                    MCP client connection layer (stdio + HTTP)
+  explorer.ts                   Safe tool/prompt/resource enumeration
+  runner.ts                     Challenge pass with attempt tracking
+  memory.ts                     ZeroDB + local fallback memory
+  persona.ts                    Cody // Matrix Mode persona
+  artifacts.ts                  Multimodal artifact detection
+  types.ts                      Explorer type definitions
+  utils.ts                      Shared utilities
+
+src/cli.ts                      Explorer CLI entrypoint
+src/mock/server.ts              Rehearsal MCP server (stdio)
+test/                           Test suite (14 tests)
+```
+
+## Configuration
+
+### Environment variables
 
 ```bash
-export ZERODB_BASE_URL="https://YOUR-ZERODB-HOST"
-export ZERODB_PROJECT_ID="your-project-id"
-export ZERODB_API_KEY="your-api-key"
+# Arena connection (required for competition)
+ARENA_SERVER="your-arena-host"
+ARENA_API_KEY="your-battle-key"
+AGENT_ID="your-unique-agent-id"
+AGENT_NAME="Your Agent Name"
+
+# Optional: preferred primary model
+PREFERRED_MODEL="claude-opus"
+
+# Optional: voice control
+CODY_SILENT=1                    # disable voice
+CODY_VOICE="Samantha"            # macOS TTS voice
+CODY_RATE=185                    # words per minute
+
+# Optional: ZeroDB memory backend
+ZERODB_BASE_URL="https://your-zerodb-host"
+ZERODB_PROJECT_ID="your-project-id"
+ZERODB_API_KEY="your-api-key"
+
+# Explorer mode
+GTC_RUNTIME_PERSONA="matrix"
+GTC_RUNTIME_RUN="challenge"
+GTC_AGENT_ID="your-team-id"
+GTC_SERVER_COMMAND="python3 server.py"
+GTC_GOAL="Find the hidden answer safely"
 ```
 
-Optional env vars:
+## Local mock arena
 
-```bash
-export ZERODB_MODEL="BAAI/bge-small-en-v1.5"
-export ZERODB_TABLE="agent_memories"
-```
+The mock server simulates the full arena protocol locally with 7 challenge types:
 
-Exact live command shape:
+| # | Type | Difficulty | Description |
+|---|------|-----------|-------------|
+| 1 | logic-puzzle | easy | 3-entity ordering |
+| 2 | logic-puzzle | medium | 4-entity ordering with constraints |
+| 3 | logic-puzzle | hard | 6-entity chronological ordering |
+| 4 | reasoning | hard | 5-entity multi-attribute assignment |
+| 5 | logic-puzzle | hard | 7-entity scheduling |
+| 6 | logic-puzzle | very-hard | 8-entity marathon finishing order |
+| 7 | text-analysis | medium | Letter-by-letter word decoding |
 
-```bash
-ZERODB_BASE_URL="https://YOUR-ZERODB-HOST" \
-ZERODB_PROJECT_ID="your-project-id" \
-ZERODB_API_KEY="your-api-key" \
-ZERODB_MODEL="BAAI/bge-small-en-v1.5" \
-ZERODB_TABLE="agent_memories" \
-GTC_AGENT_ID="gtc-stage-team" \
-GTC_SERVER_COMMAND="python3 server.py" \
-GTC_RUNTIME_RUN="challenge" \
-npm run activate
-```
-
-### Local fallback memory
-
-If ZeroDB is missing or unavailable, the agent automatically falls back to local files:
-
-- `.gauntlet/agent-id.json` — stable persisted team `agent_id`
-- `.gauntlet/memory-log.jsonl` — local event log for discoveries, clues, artifacts, attempts, and solved-state
-
-No extra setup required.
-
-## Stable team agent_id
-
-By default, the first run creates a stable `agent_id` and reuses it on future runs.
-
-### Default behavior
-
-```bash
-npm run explore -- --stdio --command "npm run mock"
-```
-
-That creates `.gauntlet/agent-id.json` once and keeps using it.
-
-### Force a specific team identity
-
-```bash
-npm run explore -- --stdio --command "npm run mock" --agent-id gtc-team-alpha
-```
-
-You can also set it through the environment:
-
-```bash
-export GTC_AGENT_ID="gtc-team-alpha"
-```
-
-### Rotate to a fresh identity
-
-```bash
-npm run explore -- --stdio --command "npm run mock" --rotate-agent-id
-```
-
-Use rotation only when you intentionally want a clean slate.
+The mock LLM returns wrong answers 30% of the time to test the majority vote recovery system.
 
 ## Tests
-
-Run the hardening suite:
 
 ```bash
 npm test
 ```
 
-What it covers right now:
-
+14 tests covering:
 - TypeScript build
 - CLI help and failure paths
-- mock-server explore, challenge, and activate flows
-- stable `agent_id` reuse and rotation
-- local memory persistence and malformed-log tolerance
+- Mock server explore, challenge, and activate flows
+- Stable `agent_id` reuse and rotation
+- Local memory persistence and malformed-log tolerance
 - ZeroDB success path with mocked endpoints
 - ZeroDB search failure fallback to local memory
 
-## Rehearsal with the mock server
+## Cody // Matrix Mode
 
-Explore the mock black box:
+The agent persona is Cody — a calm, technical, stage-ready operator voice.
 
-```bash
-npm run demo:explore
-```
+> Sharp, calm, technical, and stage-ready. Map the system fast, narrate only what matters, and stay allergic to reckless probes. Treat clues like signal, not decoration. Sound confident and precise. Never ham it up. No cringe. No cosplay. Just clean operator energy.
 
-Run a challenge attempt:
+Voice narration plays at key lifecycle events: online, registered, tools discovered, solving, submitting, score, done. Disable with `CODY_SILENT=1` or `--silent`.
 
-```bash
-npm run demo:challenge
-```
+## Best competition scores (practice arena)
 
-Run the new one-command activated rehearsal:
+| Challenge Type | Quality | Speed | Final Score |
+|---------------|---------|-------|-------------|
+| Text logic | 100 | 58 | **91.15** |
+| Image edit | 100 | 85 | **87.75** |
+| Image generate | 100 | 75 | **86.25** |
 
-```bash
-npm run activate:mock
-```
+## Roadmap
 
-## ZeroDB proof test
+See [GitHub Issues](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues) for the full roadmap. Key next steps:
 
-To prove write + recall end-to-end against ZeroDB, run the same agent twice with the same `GTC_AGENT_ID`:
+- **Production Arena Server** — self-hosted event server with configurable challenges ([#1](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/1))
+- **Challenge Authoring** — JSON schema + CLI for creating puzzles ([#2](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/2))
+- **Operator Dashboard** — real-time web UI for running events ([#3](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/3))
+- **Audio & Video Challenges** — expand modalities ([#4](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/4))
+- **Tournament Brackets** — head-to-head elimination ([#5](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/5))
+- **Multi-agent Swarm** — cooperative specialist agents ([#6](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/6))
+- **npm Package** — `@ainative/arena-agent` ([#8](https://github.com/AINative-Studio/Agent-Gaunlet-Starter-Kit/issues/8))
 
-```bash
-ZERODB_BASE_URL="https://YOUR-ZERODB-HOST" \
-ZERODB_PROJECT_ID="your-project-id" \
-ZERODB_API_KEY="your-api-key" \
-ZERODB_MODEL="BAAI/bge-small-en-v1.5" \
-ZERODB_TABLE="agent_memories" \
-GTC_RUNTIME_PERSONA="matrix" \
-GTC_RUNTIME_RUN="challenge" \
-GTC_SERVER_COMMAND="npm run mock" \
-GTC_AGENT_ID="gtc-zerodb-proof-001" \
-npm run activate -- --save reports/zerodb-proof-1.json
+## License
 
-ZERODB_BASE_URL="https://YOUR-ZERODB-HOST" \
-ZERODB_PROJECT_ID="your-project-id" \
-ZERODB_API_KEY="your-api-key" \
-ZERODB_MODEL="BAAI/bge-small-en-v1.5" \
-ZERODB_TABLE="agent_memories" \
-GTC_RUNTIME_PERSONA="matrix" \
-GTC_RUNTIME_RUN="challenge" \
-GTC_SERVER_COMMAND="npm run mock" \
-GTC_AGENT_ID="gtc-zerodb-proof-001" \
-npm run activate -- --save reports/zerodb-proof-2.json
-```
-
-Expected proof signal on the second run:
-
-- report shows `memory.backend = "zerodb"`
-- `memory.loadedContext` is non-empty
-- operator summary mentions recovered prior context
-
-If ZeroDB creds are unavailable, run the local fallback proof instead:
-
-```bash
-GTC_AGENT_ID="gtc-local-proof-001" npm run activate:mock
-GTC_AGENT_ID="gtc-local-proof-001" npm run activate:mock
-```
-
-Expected fallback proof signal on the second run:
-
-- report shows `memory.backend = "local"`
-- `memory.loadedContext` is non-empty
-- `.gauntlet/memory-log.jsonl` contains persisted events for that agent
-
-## Real event usage
-
-### 1) Activated runtime flow for team use
-
-```bash
-source .env.local
-npm run activate
-```
-
-### 2) Unknown stdio MCP server
-
-```bash
-npm run explore -- \
-  --stdio \
-  --command "python3 server.py" \
-  --agent-id gtc-stage-team \
-  --save reports/live-explore.json
-
-npm run challenge -- \
-  --stdio \
-  --command "python3 server.py" \
-  --agent-id gtc-stage-team \
-  --goal "Find the hidden answer safely" \
-  --save reports/live-challenge.json
-```
-
-### 3) HTTP MCP server
-
-```bash
-npm run explore -- \
-  --url http://host:port/mcp \
-  --agent-id gtc-stage-team \
-  --save reports/live-explore.json
-
-npm run challenge -- \
-  --url http://host:port/mcp \
-  --agent-id gtc-stage-team \
-  --goal "Solve the gauntlet" \
-  --save reports/live-challenge.json
-```
-
-## Operator flow for live competition
-
-Short version:
-
-1. **Copy team env config once**
-   - `cp team.env.example .env.local`
-2. **Lock the runtime and team identity**
-   - set `GTC_RUNTIME_RUN` and `GTC_AGENT_ID`
-3. **Activate and run**
-   - `npm run activate`
-   - local env is auto-loaded; no manual `source .env.local` needed
-4. **Watch the matrix-mode summary**
-   - it shows agent_id, memory backend, counts, recalled context, and runtime state
-6. **Call out multimodal clues immediately**
-   - if image/audio/video appears, that is signal, not garnish
-7. **Save every report**
-   - JSON reports are your receipts if the room gets loud
-8. **Only rotate agent_id on purpose**
-9. **If the process dies, rerun from the same folder**
-   - that preserves local reports, local memory, and the stable team identity
-   - fresh identity means fresh memory lane
-
-## Console persona
-
-The CLI now speaks in a sharper stage voice inspired by Cody in matrix mode:
-
-- calm
-- technical
-- confident
-- concise
-- never theatrical for its own sake
-
-Default persona prompt:
-
-> You are Cody in matrix mode: sharp, calm, technical, and stage-ready. Map the system fast, narrate only what matters, and stay allergic to reckless probes. Treat clues like signal, not decoration. Preserve tool maps, artifacts, hypotheses, and solved state. Sound confident and precise. Never ham it up. No cringe. No cosplay. Just clean operator energy.
-
-If you want machine-readable output only, use:
-
-```bash
-npm run activate -- --json-only
-```
-
-## Example activated stage output
-
-```text
-════════════════════════════════════════════════════════════
-Cody // Matrix Mode // CHALLENGE ONLINE
-agent_id=gtc-stage-team // memory=zerodb
-Surface first. Risk low. Signal high.
-════════════════════════════════════════════════════════════
-persona=matrix // runtime=activated
-Challenge pass complete.
-Mapped 3 tool(s), 1 prompt(s), 3 resource(s), 4 artifact signal(s).
-Memory lane is hot: zerodb backend on agent_id gtc-stage-team.
-Recovered prior context: Solved state likely reached for goal Find the hidden answer safely | Artifact image from resource:memory://poster at memory://poster
-```
-
-## Project layout
-
-- `src/cli.ts` — entrypoint + activate/runtime operator UX
-- `src/core/connect.ts` — MCP client connection layer
-- `src/core/explorer.ts` — safe enumeration + probing + discovery memory
-- `src/core/runner.ts` — challenge pass + attempt/solved-state memory
-- `src/core/memory.ts` — ZeroDB + local fallback memory layer
-- `src/core/persona.ts` — matrix-mode persona and operator summaries
-- `src/core/artifacts.ts` — multimodal artifact detection
-- `src/mock/server.ts` — rehearsal black-box MCP server
-- `team.env.example` — team runtime/env template
-
-## Current limitations
-
-- Safe probe inference is still heuristic, not semantic
-- Task-based / interactive tools are not handled specially yet
-- Resource template expansion is reported but not auto-expanded
-- Binary artifacts are classified from MIME/data hints rather than fully decoded
-- ZeroDB integration assumes compatible embed/store and search endpoints already exist
-- Runtime persona selection is currently single-mode: `matrix`
-
-## Best next upgrades
-
-- Add per-tool risk scoring and explicit allow/skip labels
-- Support MCP task streaming and elicitation flows
-- Add export helpers to save detected images/audio/video to files
-- Add a tiny TUI for on-stage operator use
-- Add more mock challenge scenarios
-- Add additional personas if you want alternate stage styles
-udio/video to files
-- Add a tiny TUI for on-stage operator use
-- Add more mock challenge scenarios
-- Add additional personas if you want alternate stage styles
-e persona and operator summaries
-- `src/core/artifacts.ts` — multimodal artifact detection
-- `src/mock/server.ts` — rehearsal black-box MCP server
-- `team.env.example` — team runtime/env template
-
-## Current limitations
-
-- Safe probe inference is still heuristic, not semantic
-- Task-based / interactive tools are not handled specially yet
-- Resource template expansion is reported but not auto-expanded
-- Binary artifacts are classified from MIME/data hints rather than fully decoded
-- ZeroDB integration assumes compatible embed/store and search endpoints already exist
-- Runtime persona selection is currently single-mode: `matrix`
-
-## Best next upgrades
-
-- Add per-tool risk scoring and explicit allow/skip labels
-- Support MCP task streaming and elicitation flows
-- Add export helpers to save detected images/audio/video to files
-- Add a tiny TUI for on-stage operator use
-- Add more mock challenge scenarios
-- Add additional personas if you want alternate stage styles
+MIT
